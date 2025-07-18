@@ -1,0 +1,52 @@
+# ===============================================
+# Project-Specific (HSE Checklist App)
+# ===============================================
+
+# Firebase/Firestore
+.firebase/
+firebase-debug.log
+firebase.json.*
+*.firebaserc
+
+# Expo/React Native
+.expo/
+.expo-shared/
+node_modules/
+dist/
+web-build/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# OS/Editor files
+.DS_Store
+*.swp
+.idea/
+.vscode/
+*.code-workspace
+
+# Dependency directories
+jspm_packages/
+.npm/
+.yarn/
+.yarn-cache/
+.pnp.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+android/
+ios/
+*.apk
+*.aab
+*.ipa
+*.keystore
+
+# Firebase Emulators
+firebase-emulators.json
