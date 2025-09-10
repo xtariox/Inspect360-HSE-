@@ -40,6 +40,7 @@ import ChecklistBuilder from '../components/checklists/ChecklistBuilder';
 import { useUser } from '../contexts/UserContext';
 import roleService from '../services/roleService';
 import { UserProfile } from '../types/auth';
+import InspectionFormModal from '../components/modals/InspectionFormModal';
 
 type NavigationProp = StackNavigationProp<TemplateStackParamList>;
 
@@ -87,6 +88,12 @@ export default function TemplatesScreen() {
   const [templateToEdit, setTemplateToEdit] = useState<InspectionTemplate | null>(null);
   const [editingTemplateCopy, setEditingTemplateCopy] = useState<InspectionTemplate | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Modal state for inspection form
+  const [inspectionModalVisible, setInspectionModalVisible] = useState(false);
+  const [modalInspectionId, setModalInspectionId] = useState<string | undefined>();
+  const [modalTemplate, setModalTemplate] = useState<InspectionTemplate | undefined>();
+  const [modalReadOnly, setModalReadOnly] = useState(false);
   const [showComponentPreview, setShowComponentPreview] = useState(false);
   const [previewingComponent, setPreviewingComponent] = useState<any>(null);
   const [showFieldCustomizer, setShowFieldCustomizer] = useState(false);
@@ -730,9 +737,12 @@ export default function TemplatesScreen() {
       // Show inspector selection for assignment
       handleAssignToInspector(template);
     } else {
-      console.log('🚀 TemplatesScreen - Inspector detected, navigating to form');
-      // Inspectors can fill the inspection forms
-      navigation.navigate('InspectionForm', { template });
+      console.log('🚀 TemplatesScreen - Inspector detected, opening inspection form modal');
+      // Open inspection form modal with template
+      setModalInspectionId(undefined);
+      setModalTemplate(template);
+      setModalReadOnly(false);
+      setInspectionModalVisible(true);
     }
   };
 
@@ -2222,6 +2232,20 @@ export default function TemplatesScreen() {
           </Card>
         </View>
       </Modal>
+
+      {/* Inspection Form Modal */}
+      <InspectionFormModal
+        visible={inspectionModalVisible}
+        onClose={() => {
+          setInspectionModalVisible(false);
+          setModalInspectionId(undefined);
+          setModalTemplate(undefined);
+          setModalReadOnly(false);
+        }}
+        inspectionId={modalInspectionId}
+        template={modalTemplate}
+        readOnly={modalReadOnly}
+      />
 
       </ScrollView>
     </ScreenContainer>

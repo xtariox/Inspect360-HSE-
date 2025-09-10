@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import ScreenContainer from '../components/ui/ScreenContainer';
 import { useUser } from '../contexts/UserContext';
 import { InspectorAssignments, AssignmentManager } from '../components/assignments';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import InspectionFormModal from '../components/modals/InspectionFormModal';
 
 export default function AssignmentsScreen() {
   const { user } = useUser();
@@ -12,6 +13,12 @@ export default function AssignmentsScreen() {
   
   // Get preselected template from navigation params (if any)
   const preselectedTemplate = (route.params as any)?.template;
+
+  // Modal state for inspection form
+  const [inspectionModalVisible, setInspectionModalVisible] = useState(false);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | undefined>();
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(undefined);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   if (!user) {
     return (
@@ -24,9 +31,12 @@ export default function AssignmentsScreen() {
   }
 
   const handleNavigateToInspection = (inspectionId: string) => {
-    console.log('🔄 Navigating to inspection form for:', inspectionId);
-    // Navigate to the inspection form with the inspection ID
-    (navigation as any).navigate('InspectionForm', { inspectionId });
+    console.log('🔄 Opening inspection form modal for:', inspectionId);
+    // Open inspection form modal
+    setSelectedInspectionId(inspectionId);
+    setSelectedTemplate(undefined);
+    setIsReadOnly(false);
+    setInspectionModalVisible(true);
   };
 
   const handleCreateInspection = () => {
@@ -50,6 +60,20 @@ export default function AssignmentsScreen() {
           preselectedTemplate={preselectedTemplate}
         />
       )}
+      
+      {/* Inspection Form Modal */}
+      <InspectionFormModal
+        visible={inspectionModalVisible}
+        onClose={() => {
+          setInspectionModalVisible(false);
+          setSelectedInspectionId(undefined);
+          setSelectedTemplate(undefined);
+          setIsReadOnly(false);
+        }}
+        inspectionId={selectedInspectionId}
+        template={selectedTemplate}
+        readOnly={isReadOnly}
+      />
     </ScreenContainer>
   );
 }

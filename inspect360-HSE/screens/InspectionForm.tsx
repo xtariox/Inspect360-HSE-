@@ -553,13 +553,30 @@ export default function InspectionFormScreen() {
                 await InspectionsService.submitInspection(inspectionData);
                 
                 // Show success alert and navigate back to previous screen
-                CrossPlatformAlert.alert(
+                Alert.alert(
                   'Success', 
-                  'Inspection submitted successfully! Your inspection has been completed and saved.'
+                  'Inspection submitted successfully! Your inspection has been completed and saved.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        // Navigate back to dashboard for inspectors or previous screen for others
+                        try {
+                          if (user?.role === 'inspector') {
+                            // Try to navigate to InspectorDashboard, fallback to going back
+                            (navigation as any).navigate('InspectorDashboard');
+                          } else {
+                            navigation.goBack();
+                          }
+                        } catch (navError) {
+                          console.log('Navigation error, falling back to goBack():', navError);
+                          navigation.goBack();
+                        }
+                      }
+                    }
+                  ]
                 );
                 
-                // Navigate back to previous screen
-                navigation.goBack();
               } catch (error) {
                 console.error('Error submitting inspection:', error);
                 CrossPlatformAlert.alert(

@@ -28,6 +28,7 @@ import { assignmentService } from '../services/assignmentService';
 import { InspectionsService } from '../services/inspectionsService';
 import { useUser } from '../contexts/UserContext';
 import { UserProfile } from '../types/auth';
+import InspectionFormModal from '../components/modals/InspectionFormModal';
 
 type NavigationProp = StackNavigationProp<InspectionStackParamList>;
 
@@ -64,6 +65,12 @@ export default function NewInspectionScreen() {
   const [selectedTemplate, setSelectedTemplate] = useState<InspectionTemplate | null>(null);
   const [loadingInspectors, setLoadingInspectors] = useState(false);
 
+  // Modal state for inspection form
+  const [inspectionModalVisible, setInspectionModalVisible] = useState(false);
+  const [modalInspectionId, setModalInspectionId] = useState<string | undefined>();
+  const [modalTemplate, setModalTemplate] = useState<InspectionTemplate | undefined>();
+  const [modalReadOnly, setModalReadOnly] = useState(false);
+
   useEffect(() => {
     loadTemplates();
   }, []);
@@ -94,8 +101,12 @@ export default function NewInspectionScreen() {
 
   const handleUseTemplate = async (template: InspectionTemplate) => {
     if (user?.role === 'inspector') {
-      // Inspectors can use templates to create inspections
-      navigation.navigate('InspectionForm', { template });
+      // Inspectors can use templates to create inspections via modal
+      console.log('🚀 NewInspectionScreen - Inspector detected, opening inspection form modal');
+      setModalInspectionId(undefined);
+      setModalTemplate(template);
+      setModalReadOnly(false);
+      setInspectionModalVisible(true);
     } else {
       // Admins/Managers should show inspector selection modal
       try {
@@ -643,6 +654,20 @@ export default function NewInspectionScreen() {
           </Card>
         </View>
       </Modal>
+
+      {/* Inspection Form Modal */}
+      <InspectionFormModal
+        visible={inspectionModalVisible}
+        onClose={() => {
+          setInspectionModalVisible(false);
+          setModalInspectionId(undefined);
+          setModalTemplate(undefined);
+          setModalReadOnly(false);
+        }}
+        inspectionId={modalInspectionId}
+        template={modalTemplate}
+        readOnly={modalReadOnly}
+      />
 
     </ScreenContainer>
   );

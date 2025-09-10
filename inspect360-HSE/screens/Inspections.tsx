@@ -100,113 +100,333 @@ export default function InspectionsScreen() {
     }
   };
   const generateInspectionHtml = (inspection) => {
-  const fields = Object.keys(inspection).map((key) => {
-    if (key === 'template' || key === 'responses') return ''; // Skip nested objects
-    const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '); // Format key as label
-    const value = inspection[key] ?? 'N/A';
-    return `
-      <tr>
-        <td style="padding:8px; border:1px solid #ddd; font-weight:bold; background-color:#f9f9f9;">${label}</td>
-        <td style="padding:8px; border:1px solid #ddd;">${value}</td>
-      </tr>
-    `;
-  }).join('');
+    // Helper function to format field values based on type
+    const formatFieldValue = (field, response) => {
+      if (!response || response.value === null || response.value === undefined) {
+        return 'N/A';
+      }
 
-  const sections = inspection.template?.sections?.map((section, index) => {
-    const fieldsHtml = section.fields?.map((field) => {
-      const response = inspection.responses?.find((r) => r.fieldId === field.id);
-      const value = response ? response.value : 'N/A';
-      return `
-        <tr>
-          <td style="padding:8px; border:1px solid #ddd; font-weight:bold; background-color:#f9f9f9;">${field.label}</td>
-          <td style="padding:8px; border:1px solid #ddd;">${value}</td>
-        </tr>
-      `;
-    }).join('');
+      const value = response.value;
+      
+      switch (field.type) {
+        case 'image':
+        case 'photo':
+          if (typeof value === 'string' && value.startsWith('data:image/')) {
+            return `<img src="${value}" alt="${field.label}" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;" />`;
+          } else if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('file://'))) {
+            return `<img src="${value}" alt="${field.label}" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px;" />`;
+          }
+          return 'Image not available';
+          
+        case 'boolean':
+        case 'checkbox':
+          return value ? '✓ Yes' : '✗ No';
+          
+        case 'rating':
+        case 'score':
+          const rating = parseInt(value);
+          const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+          return `${stars} (${rating}/5)`;
+          
+        case 'date':
+          return new Date(value).toLocaleDateString();
+          
+        case 'datetime':
+          return new Date(value).toLocaleString();
+          
+        case 'number':
+          return parseFloat(value).toFixed(2);
+          
+        case 'select':
+        case 'dropdown':
+          return Array.isArray(value) ? value.join(', ') : value;
+          
+        case 'textarea':
+          return value.replace(/\n/g, '<br>');
+          
+        default:
+          return Array.isArray(value) ? value.join(', ') : value;
+      }
+    };
 
-    return `
-      <h2 style="margin-top:24px; color:#444;">Section ${index + 1}: ${section.title || 'Untitled'}</h2>
-      ${section.description ? `<p style="color:#666;">${section.description}</p>` : ''}
-      <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
-        <thead>
+    // Generate basic inspection information
+    const basicFields = Object.keys(inspection)
+      .filter(key => !['template', 'responses', 'images'].includes(key))
+      .map((key) => {
+        const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+        const value = inspection[key] ?? 'N/A';
+        return `
           <tr>
-            <th style="padding:8px; border:1px solid #ddd; background-color:#f1f1f1;">Field</th>
-            <th style="padding:8px; border:1px solid #ddd; background-color:#f1f1f1;">Value</th>
+            <td style="padding:8px; border:1px solid #ddd; font-weight:bold; background-color:#f9f9f9; width: 30%;">${label}</td>
+            <td style="padding:8px; border:1px solid #ddd;">${Array.isArray(value) ? value.join(', ') : value}</td>
           </tr>
-        </thead>
-        <tbody>
-          ${fieldsHtml}
-        </tbody>
-      </table>
-    `;
-  }).join('') || '';
+        `;
+      }).join('');
 
-  return `
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>${inspection.title}</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            color: #333;
-            line-height: 1.6;
-          }
-          h1 {
-            color: #222;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 10px;
-          }
-          h2 {
-            color: #444;
-            margin-top: 24px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 16px;
-          }
-          th, td {
-            padding: 8px;
-            border: 1px solid #ddd;
-          }
-          th {
-            background-color: #f1f1f1;
-            text-align: left;
-          }
-          p {
-            margin: 8px 0;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>${inspection.title}</h1>
-        <p><strong>Status:</strong> ${inspection.status}</p>
-        <p><strong>Location:</strong> ${inspection.location}</p>
-        <p><strong>Date:</strong> ${inspection.date} at ${inspection.time}</p>
-        <p><strong>Inspector:</strong> ${inspection.inspector}</p>
-        <p><strong>Score:</strong> ${inspection.score ?? 'N/A'}%</p>
-        <p><strong>Issues:</strong> ${inspection.issues ?? 0}</p>
-        <p><strong>Description:</strong> ${inspection.description || 'N/A'}</p>
-        <hr style="margin:24px 0;" />
-        <h2>General Information</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Field</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${fields}
-          </tbody>
-        </table>
-        ${sections}
-      </body>
-    </html>
-  `;
-};
+    // Generate sections with all field types
+    const sections = inspection.template?.sections?.map((section, sectionIndex) => {
+      const fieldsHtml = section.fields?.map((field) => {
+        const response = inspection.responses?.find((r) => r.fieldId === field.id);
+        const formattedValue = formatFieldValue(field, response);
+        
+        return `
+          <tr>
+            <td style="padding:8px; border:1px solid #ddd; font-weight:bold; background-color:#f9f9f9; width: 30%;">
+              ${field.label}
+              ${field.required ? '<span style="color: red;">*</span>' : ''}
+            </td>
+            <td style="padding:8px; border:1px solid #ddd; vertical-align: top;">
+              ${formattedValue}
+              ${field.description ? `<br><small style="color: #666; font-style: italic;">${field.description}</small>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('') || '<tr><td colspan="2" style="padding:8px; text-align:center; color:#666;">No fields in this section</td></tr>';
+
+      return `
+        <div style="page-break-inside: avoid; margin-bottom: 30px;">
+          <h2 style="margin-top:30px; color:#2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+            Section ${sectionIndex + 1}: ${section.title || 'Untitled Section'}
+          </h2>
+          ${section.description ? `<p style="color:#6b7280; margin: 12px 0; font-style: italic;">${section.description}</p>` : ''}
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <thead>
+              <tr style="background-color:#f8fafc;">
+                <th style="padding:12px 8px; border:1px solid #d1d5db; background-color:#f1f5f9; font-weight: 600;">Field</th>
+                <th style="padding:12px 8px; border:1px solid #d1d5db; background-color:#f1f5f9; font-weight: 600;">Response</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${fieldsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('') || '<p style="color:#666; font-style: italic;">No sections found in this inspection template.</p>';
+
+    // Generate images section if images exist
+    const imagesSection = inspection.images && inspection.images.length > 0 ? `
+      <div style="page-break-before: auto; margin-top: 40px;">
+        <h2 style="color:#2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Inspection Images</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+          ${inspection.images.map((image, index) => `
+            <div style="text-align: center; border: 1px solid #e5e7eb; padding: 10px; border-radius: 8px;">
+              <img src="${image.url || image.uri}" alt="Inspection Image ${index + 1}" 
+                   style="max-width: 100%; height: auto; border-radius: 4px; margin-bottom: 8px;" />
+              <p style="font-size: 12px; color: #6b7280; margin: 0;">${image.caption || `Image ${index + 1}`}</p>
+              ${image.timestamp ? `<p style="font-size: 10px; color: #9ca3af; margin: 4px 0 0 0;">${new Date(image.timestamp).toLocaleString()}</p>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    // Generate summary section for critical issues
+    const criticalIssues = inspection.responses?.filter(r => {
+      const field = inspection.template?.sections
+        ?.flatMap(s => s.fields)
+        ?.find(f => f.id === r.fieldId);
+      return field?.type === 'boolean' && r.value === false && field?.critical;
+    }) || [];
+
+    const criticalIssuesSection = criticalIssues.length > 0 ? `
+      <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
+        <h3 style="color: #dc2626; margin: 0 0 12px 0; display: flex; align-items: center;">
+          ⚠️ Critical Issues Found (${criticalIssues.length})
+        </h3>
+        <ul style="margin: 0; padding-left: 20px;">
+          ${criticalIssues.map(issue => {
+            const field = inspection.template?.sections
+              ?.flatMap(s => s.fields)
+              ?.find(f => f.id === issue.fieldId);
+            return `<li style="color: #dc2626; margin-bottom: 4px;">${field?.label || 'Unknown Field'}</li>`;
+          }).join('')}
+        </ul>
+      </div>
+    ` : '';
+
+    return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>${inspection.title} - Inspection Report</title>
+          <style>
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              padding: 30px;
+              color: #1f2937;
+              line-height: 1.6;
+              background-color: #ffffff;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 40px;
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 20px;
+            }
+            .company-logo {
+              font-size: 24px;
+              font-weight: bold;
+              color: #2563eb;
+              margin-bottom: 8px;
+            }
+            h1 {
+              color: #1e40af;
+              margin: 16px 0;
+              font-size: 28px;
+              font-weight: 700;
+            }
+            h2 {
+              color: #2563eb;
+              margin-top: 32px;
+              margin-bottom: 16px;
+              font-size: 20px;
+              font-weight: 600;
+              border-bottom: 2px solid #e5e7eb;
+              padding-bottom: 8px;
+            }
+            h3 {
+              color: #374151;
+              margin-top: 24px;
+              margin-bottom: 12px;
+              font-size: 16px;
+              font-weight: 600;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 16px 0;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+              border-radius: 8px;
+              overflow: hidden;
+            }
+            th, td {
+              padding: 12px 8px;
+              border: 1px solid #d1d5db;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background-color: #f1f5f9;
+              font-weight: 600;
+              color: #374151;
+            }
+            .summary-stats {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 16px;
+              margin: 20px 0;
+            }
+            .stat-card {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 16px;
+              text-align: center;
+            }
+            .stat-value {
+              font-size: 24px;
+              font-weight: bold;
+              color: #2563eb;
+            }
+            .stat-label {
+              font-size: 12px;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .page-break {
+              page-break-before: always;
+            }
+            @media print {
+              body { margin: 0; padding: 20px; }
+              .page-break { page-break-before: always; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-logo">INSPECT360 HSE</div>
+            <h1>${inspection.title}</h1>
+            <p style="color: #6b7280; margin: 8px 0;">Safety Inspection Report</p>
+            <p style="color: #6b7280; font-size: 14px;">Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+
+          <!-- Executive Summary -->
+          <div class="summary-stats">
+            <div class="stat-card">
+              <div class="stat-value" style="color: ${inspection.score >= 90 ? '#059669' : inspection.score >= 75 ? '#d97706' : '#dc2626'}">${inspection.score ?? 'N/A'}%</div>
+              <div class="stat-label">Compliance Score</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" style="color: ${inspection.issues === 0 ? '#059669' : '#dc2626'}">${inspection.issues ?? 0}</div>
+              <div class="stat-label">Issues Found</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" style="color: ${inspection.status === 'completed' ? '#059669' : inspection.status === 'in-progress' ? '#d97706' : '#6b7280'}">${inspection.status?.toUpperCase()}</div>
+              <div class="stat-label">Status</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" style="color: #2563eb">${inspection.template?.sections?.length ?? 0}</div>
+              <div class="stat-label">Sections</div>
+            </div>
+          </div>
+
+          ${criticalIssuesSection}
+
+          <!-- Basic Information -->
+          <h2>Inspection Details</h2>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 30%;">Field</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:bold; background-color:#f9f9f9;">Status</td>
+                <td>${inspection.status}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold; background-color:#f9f9f9;">Location</td>
+                <td>${inspection.location}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold; background-color:#f9f9f9;">Date & Time</td>
+                <td>${inspection.date} at ${inspection.time}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold; background-color:#f9f9f9;">Inspector</td>
+                <td>${inspection.inspector}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold; background-color:#f9f9f9;">Score</td>
+                <td>${inspection.score ?? 'N/A'}%</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold; background-color:#f9f9f9;">Issues</td>
+                <td>${inspection.issues ?? 0}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold; background-color:#f9f9f9;">Description</td>
+                <td>${inspection.description || 'N/A'}</td>
+              </tr>
+              ${basicFields}
+            </tbody>
+          </table>
+
+          ${sections}
+          ${imagesSection}
+
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px;">
+            <p>This report was generated automatically by Inspect360 HSE on ${new Date().toLocaleString()}</p>
+            <p>Report ID: ${inspection.id}</p>
+          </div>
+        </body>
+      </html>
+    `;
+  };
 
   const loadAssignments = async () => {
     try {

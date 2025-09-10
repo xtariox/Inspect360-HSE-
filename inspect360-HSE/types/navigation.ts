@@ -15,20 +15,10 @@ export type AppStackParamList = {
 export type InspectionStackParamList = {
   InspectionList: undefined;
   NewInspection: undefined;
-  InspectionForm: { 
-    template?: InspectionTemplate;
-    inspectionId?: string;
-    readOnly?: boolean;
-  };
 };
 
 export type TemplateStackParamList = {
   TemplatesList: undefined;
   NewInspection: undefined;
-  InspectionForm: { 
-    template?: InspectionTemplate;
-    inspectionId?: string;
-    readOnly?: boolean;
-  };
   TemplateBuilder: { template?: InspectionTemplate };
 };

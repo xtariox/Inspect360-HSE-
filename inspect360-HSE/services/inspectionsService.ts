@@ -90,6 +90,19 @@ export class InspectionsService {
   // Save inspection (draft or completed)
   static async saveInspection(inspection: Inspection): Promise<Inspection> {
     try {
+      // Check current user session first
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔄 InspectionsService - Current user session:', {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        userEmail: session?.user?.email,
+        userRole: session?.user?.user_metadata?.role
+      });
+
+      if (!session?.user) {
+        throw new Error('No authenticated user found. Please log in again.');
+      }
+
       console.log('🔄 InspectionsService - Saving inspection:', {
         id: inspection.id,
         idType: typeof inspection.id,
@@ -98,7 +111,7 @@ export class InspectionsService {
         status: inspection.status,
         templateId: inspection.templateId,
         responsesCount: inspection.responses?.length || 0,
-        fullData: inspection
+        currentUserId: session.user.id
       });
       
       const supabaseInspection = this.mapInspectionToSupabase(inspection);
@@ -109,10 +122,29 @@ export class InspectionsService {
         inspector: supabaseInspection.inspector,
         template_id: supabaseInspection.template_id,
         status: supabaseInspection.status,
-        fullMappedData: supabaseInspection
+        responses_count: supabaseInspection.responses?.length || 0
       });
       
       console.log('📡 InspectionsService - About to call Supabase upsert...');
+      const startTime = Date.now();
+
+      // Test if user can access the inspections table first
+      try {
+        console.log('🔍 Testing table access permissions...');
+        const { data: testData, error: testError } = await supabase
+          .from('inspections')
+          .select('id')
+          .limit(1);
+        
+        if (testError) {
+          console.error('❌ Table access test failed:', testError);
+          throw new Error(`Database access denied: ${testError.message}`);
+        }
+        console.log('✅ Table access test successful');
+      } catch (testError) {
+        console.error('❌ Permission test error:', testError);
+        throw new Error(`Database permission error: ${testError.message}`);
+      }
       
       const { data, error } = await (supabase as any)
         .from('inspections')
@@ -120,11 +152,12 @@ export class InspectionsService {
         .select()
         .single();
 
+      const endTime = Date.now();
+      console.log('💾 Supabase upsert completed in:', endTime - startTime, 'ms');
       console.log('💾 Supabase upsert result:', { 
         success: !error,
         hasData: !!data,
         dataId: data?.id || null,
-        error: error,
         errorMessage: error?.message,
         errorCode: error?.code,
         errorDetails: error?.details,

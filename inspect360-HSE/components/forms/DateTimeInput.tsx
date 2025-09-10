@@ -12,6 +12,7 @@ export const DateTimeInput: React.FC<DateTimeInputProps> = ({
   value, 
   onChange, 
   showValidation = false,
+  readOnly = false,
   theme,
   isTablet = false 
 }) => {
@@ -64,25 +65,42 @@ export const DateTimeInput: React.FC<DateTimeInputProps> = ({
   };
 
   const handleDateTimeChange = (event: any, selectedDate?: Date) => {
+    // On web, the event.target.value contains the formatted string from HTML5 input
+    if (Platform.OS === 'web' && event?.target?.value !== undefined) {
+      console.log('🌐 Web date/time change:', event.target.value);
+      onChange(event.target.value);
+      return;
+    }
+    
+    // On mobile platforms
     if (Platform.OS === 'android') {
       setShowPicker(false);
     }
     
     if (selectedDate) {
       const formattedValue = formatDateForStorage(selectedDate);
+      console.log('📱 Mobile date/time change:', formattedValue);
       onChange(formattedValue);
     }
   };
 
   const handlePress = () => {
+    if (readOnly) {
+      // Don't open picker in read-only mode
+      return;
+    }
+    
     if (Platform.OS === 'web') {
-      // On web, we'll fall back to HTML5 input
+      // On web, the picker is always visible, no need to toggle
       return;
     }
     setShowPicker(true);
   };
 
   const getBorderColor = () => {
+    if (readOnly) {
+      return theme.colors.border;
+    }
     if (showValidation && field.required && !value) {
       return theme.colors.error;
     }
@@ -98,7 +116,7 @@ export const DateTimeInput: React.FC<DateTimeInputProps> = ({
     return 'date';
   };
 
-  // For web, use HTML5 input types
+  // For web, use HTML5 input elements (DateTimePicker doesn't support web)
   if (Platform.OS === 'web') {
     const getInputType = () => {
       switch (field.type) {
@@ -112,62 +130,80 @@ export const DateTimeInput: React.FC<DateTimeInputProps> = ({
     };
 
     return (
-      <View>
-        <TextInput
-          placeholder={field.placeholder || field.label}
-          value={value || ''}
-          onChangeText={onChange}
-          style={{
-            backgroundColor: theme.colors.surface,
-            borderColor: getBorderColor(),
-            borderWidth: 1,
-            borderRadius: 8,
-            padding: isTablet ? 16 : 12,
-            fontSize: isTablet ? 16 : 14,
-            color: theme.colors.text,
-            minHeight: isTablet ? 48 : 40,
-          }}
-          placeholderTextColor={theme.colors.textSecondary}
-          {...(Platform.OS === 'web' && {
+      <View style={{
+        backgroundColor: readOnly ? theme.colors.background : theme.colors.surface,
+        borderColor: getBorderColor(),
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: isTablet ? 16 : 12,
+        minHeight: isTablet ? 48 : 40,
+        justifyContent: 'center',
+        opacity: readOnly ? 0.6 : 1,
+      }}>
+        {readOnly ? (
+          <Text
+            style={{
+              fontSize: isTablet ? 16 : 14,
+              color: theme.colors.textSecondary,
+            }}
+          >
+            {value ? getDisplayValue() : (field.placeholder || field.label)}
+          </Text>
+        ) : (
+          <TextInput
+            placeholder={field.placeholder || field.label}
+            value={value || ''}
+            onChange={handleDateTimeChange}
+            style={{
+              backgroundColor: 'transparent',
+              fontSize: isTablet ? 16 : 14,
+              color: theme.colors.text,
+              width: '100%',
+              padding: 0,
+            }}
             // @ts-ignore - Web-specific props
-            type: getInputType()
-          })}
-        />
+            type={getInputType()}
+            disabled={readOnly}
+          />
+        )}
       </View>
     );
   }
 
-  // For mobile, use native pickers
+  // For mobile, use native pickers with TouchableOpacity trigger
   return (
     <View>
       <TouchableOpacity
         onPress={handlePress}
+        disabled={readOnly}
         style={{
-          backgroundColor: theme.colors.surface,
+          backgroundColor: readOnly ? theme.colors.background : theme.colors.surface,
           borderColor: getBorderColor(),
           borderWidth: 1,
           borderRadius: 8,
           padding: isTablet ? 16 : 12,
           minHeight: isTablet ? 48 : 40,
           justifyContent: 'center',
+          opacity: readOnly ? 0.6 : 1,
         }}
       >
         <Text
           style={{
             fontSize: isTablet ? 16 : 14,
-            color: value ? theme.colors.text : theme.colors.textSecondary,
+            color: value ? (readOnly ? theme.colors.textSecondary : theme.colors.text) : theme.colors.textSecondary,
           }}
         >
           {value ? getDisplayValue() : (field.placeholder || field.label)}
         </Text>
       </TouchableOpacity>
 
-      {showPicker && (
+      {showPicker && !readOnly && (
         <DateTimePicker
           value={getDateValue()}
           mode={getPickerMode()}
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateTimeChange}
+          textColor={theme.colors.text}
           {...(Platform.OS === 'ios' && {
             onTouchCancel: () => setShowPicker(false)
           })}

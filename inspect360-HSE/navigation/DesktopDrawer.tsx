@@ -6,7 +6,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import AuthScreen from '../screens/auth/AuthScreen';
 import HomeScreen from '../screens/Home';
 import InspectionScreen from '../screens/Inspections';
-import InspectionFormScreen from '../screens/InspectionForm';
 import NewInspectionScreen from '../screens/NewInspectionScreen';
 import TemplatesScreen from '../screens/TemplatesScreen';
 import TemplateBuilderScreen from '../screens/TemplateBuilderScreen';
@@ -19,13 +18,22 @@ import { useUser } from '../contexts/UserContext';
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 
+// Stack navigator for inspector screens
+function InspectorStack() {
+  return (
+    <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="InspectorDashboard" component={InspectorDashboard} />
+      <Stack.Screen name="AssignmentsList" component={AssignmentsScreen} />
+    </Stack.Navigator>
+  );
+}
+
 // Stack navigator for inspection screens
 function InspectionStack() {
   return (
     <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="InspectionList" component={InspectionScreen} />
       <Stack.Screen name="NewInspection" component={NewInspectionScreen} />
-      <Stack.Screen name="InspectionForm" component={InspectionFormScreen} />
     </Stack.Navigator>
   );
 }
@@ -37,7 +45,6 @@ function TemplateStack() {
       <Stack.Screen name="TemplatesList" component={TemplatesScreen} />
       <Stack.Screen name="TemplateBuilder" component={TemplateBuilderScreen} />
       <Stack.Screen name="NewInspection" component={NewInspectionScreen} />
-      <Stack.Screen name="InspectionForm" component={InspectionFormScreen} />
     </Stack.Navigator>
   );
 }
@@ -48,7 +55,6 @@ function AssignmentStack() {
     <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AssignmentsList" component={AssignmentsScreen} />
       <Stack.Screen name="NewInspection" component={NewInspectionScreen} />
-      <Stack.Screen name="InspectionForm" component={InspectionFormScreen} />
     </Stack.Navigator>
   );
 }
@@ -67,7 +73,7 @@ function AppDrawer() {
     console.log('Desktop Navigation - Showing Inspector drawer');
     return (
       <Drawer.Navigator id={undefined}>
-        <Drawer.Screen name="Dashboard" component={InspectorDashboard} />
+        <Drawer.Screen name="Dashboard" component={InspectorStack} />
         <Drawer.Screen name="Assignments" component={AssignmentsScreen} />
         <Drawer.Screen name="Settings" component={SettingsScreen} />
       </Drawer.Navigator>

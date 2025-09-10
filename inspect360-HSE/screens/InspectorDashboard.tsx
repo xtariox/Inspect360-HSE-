@@ -12,13 +12,15 @@ import {
   MapPin,
   User,
   Eye,
-  Play
+  Play,
+  RefreshCw
 } from '@tamagui/lucide-icons';
 import ScreenContainer from '../components/ui/ScreenContainer';
 import { useAppTheme } from '../themes';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { assignmentService, InspectionAssignment } from '../services/assignmentService';
+import InspectionFormModal from '../components/modals/InspectionFormModal';
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -49,31 +51,42 @@ export default function InspectorDashboard() {
   const { user } = useUser();
   const [assignments, setAssignments] = useState<InspectionAssignment[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal state
+  const [inspectionModalVisible, setInspectionModalVisible] = useState(false);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | undefined>();
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | undefined>();
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(undefined);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
+  // Load initial data when user is available
   useEffect(() => {
     if (user) {
+      console.log('👤 User loaded, loading initial assignments...');
       loadAssignments();
     }
   }, [user]);
 
-  // Refresh data when screen comes into focus
+  // Refresh data when screen comes into focus, but only if data is stale
   useFocusEffect(
     useCallback(() => {
-      if (user) {
-        console.log('📱 Inspector dashboard focused, refreshing data...');
+      if (user && assignments.length === 0) {
+        console.log('📱 Inspector dashboard focused with no data, refreshing...');
         loadAssignments();
+      } else if (user) {
+        console.log('📱 Inspector dashboard focused, data already loaded');
       }
-    }, [user])
+    }, [user, assignments.length])
   );
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 2 minutes (reduced from 30 seconds)
   useEffect(() => {
     if (!user) return;
 
     const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing dashboard data...');
+      console.log('🔄 Auto-refreshing dashboard data (2 min interval)...');
       loadAssignments();
-    }, 30000); // 30 seconds
+    }, 120000); // 2 minutes instead of 30 seconds
 
     return () => clearInterval(interval);
   }, [user]);
@@ -95,20 +108,22 @@ export default function InspectorDashboard() {
 
   const handleStartInspection = async (assignment: InspectionAssignment) => {
     try {
+      console.log('🚀 InspectorDashboard - Starting inspection for assignment:', assignment.id, 'status:', assignment.status);
+      
       // Update status to in_progress
       await assignmentService.updateAssignmentStatus(assignment.id, 'in_progress');
       
       // Refresh assignments to show updated status
       loadAssignments();
       
-      // Navigate to inspection form
-      (navigation as any).navigate('InspectionForm', { 
-        assignmentId: assignment.id,
-        inspectionId: assignment.inspection_id 
-      });
+      // Open inspection form modal
+      setSelectedInspectionId(assignment.inspection_id);
+      setSelectedAssignmentId(assignment.id); // Store assignment ID for completion update
+      setSelectedTemplate(undefined); // Will be loaded by the modal
+      setIsReadOnly(false);
+      console.log('✅ InspectorDashboard - Opening modal with readOnly=false');
+      setInspectionModalVisible(true);
       
-      // Refresh assignments
-      loadAssignments();
     } catch (error) {
       console.error('Error starting inspection:', error);
       Alert.alert('Error', 'Failed to start inspection. Please try again.');
@@ -139,23 +154,44 @@ export default function InspectorDashboard() {
 
   return (
     <ScreenContainer>
+      <ScrollView showsVerticalScrollIndicator={true}>
       <YStack gap="$4" paddingBottom="$8">
         {/* Header */}
-        <YStack gap="$2">
-          <Text style={{ 
-            fontSize: isTablet ? 28 : 24, 
-            fontWeight: 'bold', 
-            color: theme.colors.text 
-          }}>
-            Inspector Dashboard
-          </Text>
-          <Text style={{ 
-            fontSize: 14, 
-            color: theme.colors.textSecondary 
-          }}>
-            Welcome back, {user.full_name}
-          </Text>
-        </YStack>
+        <XStack alignItems="center" justifyContent="space-between" marginBottom="$4">
+          <YStack gap="$1">
+            <Text style={{ 
+              fontSize: isTablet ? 28 : 24, 
+              fontWeight: 'bold', 
+              color: theme.colors.text 
+            }}>
+              Inspector Dashboard
+            </Text>
+            <Text style={{ 
+              fontSize: 14, 
+              color: theme.colors.textSecondary 
+            }}>
+              Welcome back, {user.full_name}
+            </Text>
+          </YStack>
+          
+          <TouchableOpacity
+            onPress={() => {
+              console.log('🔄 Manual refresh triggered');
+              loadAssignments();
+            }}
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+              borderWidth: 1,
+              borderRadius: 8,
+              padding: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <RefreshCw size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </XStack>
 
         <ScrollView showsVerticalScrollIndicator={false}>
           <YStack gap="$4">
@@ -369,10 +405,13 @@ export default function InspectorDashboard() {
                               size="$2"
                               icon={<Eye size={16} />}
                               onPress={() => {
-                                (navigation as any).navigate('InspectionForm', { 
-                                  assignmentId: assignment.id,
-                                  inspectionId: assignment.inspection_id 
-                                });
+                                console.log('🔄 InspectorDashboard - Continue button clicked for assignment:', assignment.id, 'status:', assignment.status);
+                                setSelectedInspectionId(assignment.inspection_id);
+                                setSelectedAssignmentId(assignment.id);
+                                setSelectedTemplate(undefined);
+                                setIsReadOnly(false);
+                                console.log('✅ InspectorDashboard - Opening modal with readOnly=false (Continue)');
+                                setInspectionModalVisible(true);
                               }}
                             >
                               Continue
@@ -386,6 +425,15 @@ export default function InspectorDashboard() {
                               color={theme.colors.text}
                               size="$2"
                               icon={<Eye size={16} />}
+                              onPress={() => {
+                                console.log('👁️ InspectorDashboard - View button clicked for assignment:', assignment.id, 'status:', assignment.status);
+                                setSelectedInspectionId(assignment.inspection_id);
+                                setSelectedAssignmentId(assignment.id);
+                                setSelectedTemplate(undefined);
+                                setIsReadOnly(true);
+                                console.log('✅ InspectorDashboard - Opening modal with readOnly=true (View completed)');
+                                setInspectionModalVisible(true);
+                              }}
                             >
                               View
                             </Button>
@@ -400,6 +448,33 @@ export default function InspectorDashboard() {
           </YStack>
         </ScrollView>
       </YStack>
+      
+      {/* Inspection Form Modal */}
+      <InspectionFormModal
+        visible={inspectionModalVisible}
+        onClose={() => {
+          const wasInProgress = selectedAssignmentId !== undefined;
+          
+          setInspectionModalVisible(false);
+          setSelectedInspectionId(undefined);
+          setSelectedAssignmentId(undefined);
+          setSelectedTemplate(undefined);
+          setIsReadOnly(false);
+          
+          // Only refresh if there was an active assignment (meaning potential status change)
+          if (wasInProgress) {
+            console.log('🔄 Modal closed after inspection work, refreshing assignments...');
+            loadAssignments();
+          } else {
+            console.log('🚪 Modal closed without changes, skipping refresh');
+          }
+        }}
+        inspectionId={selectedInspectionId}
+        assignmentId={selectedAssignmentId}
+        template={selectedTemplate}
+        readOnly={isReadOnly}
+      />
+      </ScrollView>
     </ScreenContainer>
   );
 }
